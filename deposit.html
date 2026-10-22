@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deposit | Bango Bets</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+<h1>Deposit</h1>
+<form class="card" id="f" novalidate>
+<div class="bal">Your balance (KES)<b id="bal">-</b></div>
+<div><label for="amt">Amount (KES), minimum 20</label><input id="amt" type="number" min="20" max="150000" value="100" inputmode="numeric"></div>
+<div class="quick">
+<button type="button" data-a="50">50</button><button type="button" data-a="100">100</button>
+<button type="button" data-a="500">500</button><button type="button" data-a="1000">1000</button>
+</div>
+<div><label for="phone">M-Pesa phone number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel"></div>
+<div class="msg" id="msg" aria-live="polite"></div>
+<button class="main" id="go" type="submit">Send M-Pesa prompt</button>
+<p class="bal"><a href="/">Back to game</a> &nbsp; <a href="#" id="out">Sign out</a></p>
+</form>
+</div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},tok="";
+try{tok=localStorage.getItem("bb_token")||""}catch(e){}
+if(!tok){location.href="/login.html";return}
+function api(path,opt){opt=opt||{};opt.headers=Object.assign({Authorization:"Bearer "+tok,"Content-Type":"application/json"},opt.headers);
+return fetch(path,opt).then(function(r){if(r.status===401){try{localStorage.removeItem("bb_token")}catch(e){}location.href="/login.html"}return r})}
+function say(t,ok){$("msg").className="msg"+(ok?" ok":"");$("msg").textContent=t}
+async function me(){try{var r=await api("/api/me"),d=await r.json();
+$("bal").textContent=Number(d.balance).toLocaleString("en-KE");if(!$("phone").value&&d.phone)$("phone").value="0"+d.phone.slice(3)}catch(e){}}
+me();
+Array.prototype.forEach.call(document.querySelectorAll(".quick button"),function(b){b.onclick=function(){$("amt").value=b.dataset.a}});
+$("out").onclick=function(e){e.preventDefault();try{localStorage.removeItem("bb_token")}catch(x){}location.href="/login.html"};
+$("f").onsubmit=async function(e){
+e.preventDefault();var amt=Math.floor(+$("amt").value);
+if(!(amt>=20)){say("The minimum deposit is 20 KES.");return}
+$("go").disabled=true;say("Sending the prompt to your phone…",true);
+try{
+var r=await api("/api/deposit",{method:"POST",body:JSON.stringify({amount:amt,phone:$("phone").value})}),d=await r.json();
+if(!r.ok){say(d.error||"Could not start the deposit.");$("go").disabled=false;return}
+say("Check your phone and enter your M-Pesa PIN.",true);
+var tries=0,id=d.id,iv=setInterval(async function(){
+tries++;
+try{var s=await(await api("/api/deposit/"+id)).json();
+if(s.status==="SUCCESS"){clearInterval(iv);say("Deposit of "+s.amount+" KES received.",true);$("go").disabled=false;me()}
+else if(s.status!=="PENDING"){clearInterval(iv);say("The payment was cancelled or failed. You were not charged.");$("go").disabled=false}}catch(x){}
+if(tries>=30){clearInterval(iv);say("No confirmation yet. If M-Pesa charged you, your balance will update shortly.");$("go").disabled=false}
+},3000);
+}catch(x){say("Cannot reach the server. Check your connection.");$("go").disabled=false}};
+})();
+</script>
+</body>
+</html>
