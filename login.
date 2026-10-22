@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in | Bango Bets</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+<h1>Bango Bets</h1>
+<form class="card" id="f" novalidate>
+<div class="tabs" role="tablist">
+<button type="button" id="t-in" class="on">Sign in</button>
+<button type="button" id="t-up">Create account</button>
+</div>
+<div><label for="phone">M-Pesa phone number</label><input id="phone" type="tel" inputmode="numeric" placeholder="0712 345 678" autocomplete="tel" required></div>
+<div><label for="pw">Password</label><input id="pw" type="password" minlength="8" autocomplete="current-password" required></div>
+<div id="up" class="hide">
+<div><label for="dob">Date of birth</label><input id="dob" type="date"></div>
+<label class="chk" style="margin-top:12px"><input id="age" type="checkbox"> I am 18 or older and I accept the terms. Gambling can be addictive. Play responsibly.</label>
+</div>
+<div class="msg" id="msg" aria-live="polite"></div>
+<button class="main" id="go" type="submit">Sign in</button>
+</form>
+</div>
+<script>
+(function(){
+var up=false,$=function(i){return document.getElementById(i)};
+try{if(localStorage.getItem("bb_token")){location.href="/deposit.html";return}}catch(e){}
+function mode(u){up=u;$("t-in").className=u?"":"on";$("t-up").className=u?"on":"";
+$("up").className=u?"":"hide";$("go").textContent=u?"Create account":"Sign in";
+$("pw").autocomplete=u?"new-password":"current-password";$("msg").textContent=""}
+$("t-in").onclick=function(){mode(false)};$("t-up").onclick=function(){mode(true)};
+$("f").onsubmit=async function(e){
+e.preventDefault();var m=$("msg");m.className="msg";m.textContent="";
+if(up&&!$("age").checked){m.textContent="Confirm that you are 18 or older.";return}
+$("go").disabled=true;
+try{
+var r=await fetch(up?"/api/register":"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({phone:$("phone").value,password:$("pw").value,dob:$("dob").value})});
+var d=await r.json();
+if(!r.ok){m.textContent=d.error||"Something went wrong. Try again.";return}
+try{localStorage.setItem("bb_token",d.token)}catch(x){m.textContent="Enable browser storage to stay signed in.";return}
+location.href="/deposit.html";
+}catch(x){m.textContent="Cannot reach the server. Check your connection."}
+finally{$("go").disabled=false}};
+})();
+</script>
+</body>
+</html>
